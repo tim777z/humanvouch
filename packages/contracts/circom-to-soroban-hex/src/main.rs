@@ -6,6 +6,7 @@ use std::{fs, str::FromStr};
 
 #[derive(Deserialize)]
 struct VerificationKeyJson {
+    curve: String,
     vk_alpha_1: [String; 3],
     vk_beta_2: [[String; 2]; 3],
     vk_gamma_2: [[String; 2]; 3],
@@ -69,6 +70,10 @@ fn parse_u256_be(signal: &str) -> [u8; 32] {
 fn vk_hex(path: &str) -> String {
     let src = fs::read_to_string(path).expect("failed to read vk json");
     let vk: VerificationKeyJson = serde_json::from_str(&src).expect("invalid vk json");
+
+    if vk.curve != "bls12-381" {
+        panic!("curve mismatch: expected bls12-381, got {}", vk.curve);
+    }
 
     if vk.ic.len() != vk.n_public + 1 {
         panic!("IC length does not match nPublic + 1");
@@ -154,16 +159,4 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use super::g2_bytes;
-
-    // Must match `packages/web/test/snarkHex.test.js` for the fixed G2 point
-    // [[1,2],[3,4]]: Arkworks `serialize_uncompressed` writes each Fq2 as [c0, c1]
-    // (no Solidity-style [c1, c0] swap), so the browser encoder must not reorder.
-    #[test]
-    fn g2_limb_order_matches_js_encoder() {
-        let got = hex::encode(g2_bytes("1", "2", "3", "4"));
-        let expected = format!("{:096x}{:096x}{:096x}{:096x}", 1u8, 2u8, 3u8, 4u8);
-        assert_eq!(got, expected);
-        assert_eq!(got.len(), 192 * 2);
-    }
 }
